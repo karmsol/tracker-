@@ -25,19 +25,12 @@ test("Hinglish quick add previews a structured task before saving", async ({ pag
 test("admin assigns work and the employee can finish it", async ({ page }) => {
   const title = `Floor note ${Date.now()}`;
   await signIn(page, "arjun.mehta@karmkaro.dev");
-  await page.getByRole("button", { name: /Quick add|जल्दी जोड़ें/ }).click();
-  await page.getByRole("button", { name: "Write it yourself" }).click();
-  await page.getByLabel("Title").fill(title);
-  await page.getByRole("button", { name: "Save task" }).click();
-  await expect(page.getByLabel("Title")).toHaveValue(title);
-  await page.keyboard.press("Escape");
-
   await page.goto("/admin/assign");
-  await expect(page.getByRole("heading", { name: "Assign work" })).toBeVisible();
-  await page.getByRole("checkbox", { name: title }).check();
-  await page.getByRole("checkbox", { name: "Rahul Verma" }).check();
-  await page.getByRole("button", { name: "Assign" }).click();
-  await expect(page.getByText("Assigned")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "One task. One person." })).toBeVisible();
+  await page.getByLabel("What needs doing?").fill(title);
+  await page.getByRole("listbox", { name: "People" }).getByRole("option", { name: /Rahul Verma/ }).click();
+  await page.getByRole("button", { name: /Give this to Rahul|Give this work/ }).click();
+  await expect(page.getByText(/Assigned to Rahul/)).toBeVisible();
 
   const denied = await page.request.get("/api/v1/admin/dashboard");
   expect(denied.ok()).toBeTruthy();

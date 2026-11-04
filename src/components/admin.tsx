@@ -1,40 +1,143 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import type { TaskDTO } from "@/lib/dto";
+import { zonedTimeToUtc } from "@/lib/zoned";
 import { useWorkspace } from "./workspace";
 
-export function AdminHome() {
-  const [data, setData] = useState<{
-    totals: { tasks: number; open: number; done: number; overdue: number };
-    completionRate: number;
-    perEmployee: { name: string; open: number; done: number; overdue: number; completionRate: number }[];
-    weekly: { week: string; completed: number; created: number }[];
-  } | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    api<NonNullable<typeof data>>("/api/v1/admin/dashboard").then(setData).catch((err) => setError(err.message));
-  }, []);
-  if (error) return <p>{error}</p>;
-  if (!data) return <p>Loading the desk…</p>;
+const PRIORITIES = [
+  { value: 1, label: "Urgent", tone: "border-[#b91c1c] text-[#b91c1c]" },
+  { value: 2, label: "High", tone: "border-[#c2410c] text-[#c2410c]" },
+  { value: 3, label: "Normal", tone: "border-[#1a1744] text-[#1a1744]" },
+  { value: 4, label: "Later", tone: "border-stone-400 text-stone-500" },
+] as const;
+
+export function AdminNav() {
+  const pathname = usePathname();
+  const primary = [
+    ["/admin/assign", "Give work"],
+    ["/admin", "Team"],
+    ["/admin/people", "People"],
+  ] as const;
+  const more = [
+    ["/admin/workload", "Workload"],
+    ["/admin/projects", "Projects"],
+    ["/admin/reports", "Reports"],
+    ["/admin/audit", "Audit"],
+    ["/admin/settings", "Settings"],
+  ] as const;
+  const moreOpen = more.some(([href]) => pathname === href || pathname.startsWith(`${href}/`));
   return (
-    <div className="space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">Admin desk</p>
-        <h1 className="font-display text-4xl">How the work is moving</h1>
+    <div className="space-y-2">
+      <nav className="flex flex-wrap gap-2" aria-label="Manager">
+        {primary.map(([href, label]) => {
+          const active = pathname === href || (href !== "/admin" && pathname.startsWith(href));
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`rounded-full px-4 py-2 text-sm ${active ? "bg-[#1a1744] text-[#f6f1e8]" : "border bg-card hover:bg-secondary"}`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+      <details className="rounded-2xl border bg-card px-4 py-2" open={moreOpen}>
+        <summary className="cursor-pointer text-sm text-muted-foreground">More manager tools</summary>
+        <nav className="mt-2 flex flex-wrap gap-2 pb-1" aria-label="More manager tools">
+          {more.map(([href, label]) => (
+            <Link key={href} href={href} className={`rounded-full border px-3 py-1 text-sm ${pathname === href ? "border-[#1a1744] bg-[#1a1744] text-[#f6f1e8]" : "bg-background"}`}>
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </details>
+    </div>
+  );
+}
+
+function ManagerShell({
+  eyebrow,
+  title,
+  hint,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <header className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">{eyebrow}</p>
+        <h1 className="font-display text-4xl md:text-5xl">{title}</h1>
+        {hint && <p className="max-w-2xl text-sm text-muted-foreground">{hint}</p>}
       </header>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <AdminNav />
+      {children}
+    </div>
+  );
+}
+
+export function AdminHome() {
+  const { data } = useWorkspace();
+  const router = useRouter();
+  const [stats, setStats] = useState<{
+    totals: { open: number; overdue: number; done: number };
+    perEmployee: { id: string; name: string; open: number; overdue: number }[];
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api<{
+      totals: { open: number; overdue: number; done: number };
+      perEmployee: { id: string; name: string; open: number; overdue: number }[];
+    }>("/api/v1/admin/dashboard")
+      .then((next) => {
+        if (!cancelled) setStats(next);
+      })
+      .catch((err: unknown) => toast.error(err instanceof Error ? err.message : "Could not load the team desk"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const team = useMemo(() => {
+    const people = data.members.filter((member) => member.active && member.role === "EMPLOYEE");
+    return people.map((member) => {
+      const row = stats?.perEmployee.find((item) => item.id === member.id);
+      return { ...member, open: row?.open ?? 0, overdue: row?.overdue ?? 0 };
+    });
+  }, [data.members, stats]);
+
+  return (
+    <ManagerShell
+      eyebrow="Manager desk"
+      title="Give work. Keep it light."
+      hint="This desk is only for handing work to people. Charts and settings stay tucked under More."
+    >
+      <section className="rounded-[1.75rem] border bg-[#1a1744] p-6 text-[#f6f1e8] shadow-sm">
+        <p className="text-sm text-[#fdba74]">Start here</p>
+        <h2 className="mt-1 font-display text-3xl">Who needs the next task?</h2>
+        <p className="mt-2 max-w-xl text-sm text-[#f6f1e8]/70">Write what needs doing, pick one person, send it. They get it in My work.</p>
+        <Button className="mt-5 bg-[#e8610a] text-white hover:bg-[#c2410c]" onClick={() => router.push("/admin/assign")}>
+          Give someone work
+        </Button>
+      </section>
+
+      <div className="grid gap-3 sm:grid-cols-3">
         {[
-          ["Tasks", data.totals.tasks],
-          ["Open", data.totals.open],
-          ["Done", data.totals.done],
-          ["Overdue", data.totals.overdue],
+          ["Open with the team", stats?.totals.open ?? "—"],
+          ["Overdue", stats?.totals.overdue ?? "—"],
+          ["Done", stats?.totals.done ?? "—"],
         ].map(([label, value]) => (
           <div key={String(label)} className="rounded-2xl border bg-card p-4">
             <p className="text-sm text-muted-foreground">{label}</p>
@@ -42,53 +145,275 @@ export function AdminHome() {
           </div>
         ))}
       </div>
-      <p className="text-sm">Completion rate {data.completionRate}%</p>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-64 rounded-2xl border bg-card p-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.perEmployee}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" hide />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="open" fill="#1a1744" />
-              <Bar dataKey="done" fill="#e8610a" />
-            </BarChart>
-          </ResponsiveContainer>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-display text-2xl">Your people</h2>
+          <Link href="/admin/people" className="text-sm underline">Invite someone</Link>
         </div>
-        <div className="h-64 rounded-2xl border bg-card p-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data.weekly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" hide />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Line dataKey="completed" stroke="#c2410c" />
-              <Line dataKey="created" stroke="#2a2760" />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {team.map((member) => (
+            <button
+              key={member.id}
+              type="button"
+              onClick={() => router.push(`/admin/assign?to=${member.id}`)}
+              className="rounded-2xl border bg-card p-4 text-left transition hover:border-[#c2410c]/50 hover:shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#1a1744] text-sm font-semibold text-[#f6f1e8]">
+                  {member.name.slice(0, 1)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{member.name}</span>
+                  <span className="block truncate text-sm text-muted-foreground">{member.title || "Team member"}</span>
+                </span>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span>{member.open} open</span>
+                <span className={member.overdue ? "text-[#b91c1c]" : "text-muted-foreground"}>
+                  {member.overdue ? `${member.overdue} overdue` : "Clear"}
+                </span>
+              </div>
+              <span className="mt-3 inline-flex text-sm font-medium text-[#c2410c]">Give work →</span>
+            </button>
+          ))}
+          {!team.length && <p className="text-sm text-muted-foreground">Invite employees first, then assign from here.</p>}
         </div>
-      </div>
-      <AdminNav />
-    </div>
+      </section>
+    </ManagerShell>
   );
 }
 
-export function AdminNav() {
-  const links = [
-    ["/admin", "Overview"],
-    ["/admin/people", "People"],
-    ["/admin/assign", "Assign"],
-    ["/admin/workload", "Workload"],
-    ["/admin/projects", "Projects"],
-    ["/admin/reports", "Reports"],
-    ["/admin/audit", "Audit"],
-    ["/admin/settings", "Settings"],
-  ];
+function AssignAdminForm() {
+  const { data, refresh, openTask } = useWorkspace();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const presetPerson = searchParams.get("to") ?? "";
+  const [title, setTitle] = useState("");
+  const [personId, setPersonId] = useState(presetPerson);
+  const [trackedPerson, setTrackedPerson] = useState(presetPerson);
+  const [projectId, setProjectId] = useState("");
+  const [priority, setPriority] = useState(3);
+  const [dueDay, setDueDay] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
+  const [handoffId, setHandoffId] = useState("");
+  const [handoffPerson, setHandoffPerson] = useState("");
+
+  const people = data.members.filter((member) => member.active);
+  const projects = data.projects.filter((project) => !project.archivedAt);
+  if (presetPerson !== trackedPerson) {
+    setTrackedPerson(presetPerson);
+    if (presetPerson && people.some((member) => member.id === presetPerson)) setPersonId(presetPerson);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    api<TaskDTO[]>("/api/v1/tasks?view=search")
+      .then((rows) => {
+        if (!cancelled) setTasks(rows.filter((task) => task.status !== "DONE" && !task.parentId));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const chosen = people.find((member) => member.id === personId);
+
+  async function giveWork(event: React.FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) {
+      toast.error("Write what needs doing");
+      return;
+    }
+    if (!personId) {
+      toast.error("Pick one person");
+      return;
+    }
+    setBusy(true);
+    try {
+      const task = await api<TaskDTO>("/api/v1/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          assigneeIds: [personId],
+          projectId: projectId || null,
+          priority,
+          dueAt: dueDay
+            ? (() => {
+                const [year, month, day] = dueDay.split("-").map(Number);
+                return zonedTimeToUtc(year, month, day, 18, 0, data.org.timezone).toISOString();
+              })()
+            : undefined,
+        }),
+      });
+      toast.success(`Assigned to ${chosen?.name ?? "the team"}`);
+      setTitle("");
+      setDueDay("");
+      setPriority(3);
+      await refresh();
+      openTask(task.id);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not assign");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handoffExisting() {
+    if (!handoffId || !handoffPerson) {
+      toast.error("Pick a task and a person");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api("/api/v1/tasks/bulk", {
+        method: "POST",
+        body: JSON.stringify({ ids: [handoffId], assigneeIds: [handoffPerson] }),
+      });
+      toast.success("Assigned");
+      setHandoffId("");
+      const rows = await api<TaskDTO[]>("/api/v1/tasks?view=search");
+      setTasks(rows.filter((task) => task.status !== "DONE" && !task.parentId));
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not assign");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <nav className="flex flex-wrap gap-2 text-sm" aria-label="Admin">
-      {links.map(([href, label]) => <Link key={href} className="rounded-full border bg-card px-3 py-1" href={href}>{label}</Link>)}
-    </nav>
+    <ManagerShell
+      eyebrow="Give work"
+      title="One task. One person."
+      hint="Managers use this page every day. Write the work, choose who owns it, send it."
+    >
+      <form onSubmit={giveWork} className="space-y-6 rounded-[1.75rem] border bg-card p-5 shadow-sm md:p-7">
+        <div className="space-y-2">
+          <Label htmlFor="assign-title">What needs doing?</Label>
+          <Input
+            id="assign-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Send the client report"
+            className="h-12 text-base"
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label>Who should do it?</Label>
+          <div className="grid gap-2 sm:grid-cols-2" role="listbox" aria-label="People">
+            {people.map((member) => {
+              const active = personId === member.id;
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => setPersonId(member.id)}
+                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${active ? "border-[#c2410c] bg-[#fff7ed]" : "bg-background hover:bg-secondary"}`}
+                >
+                  <span className={`grid h-10 w-10 place-items-center rounded-full text-sm font-semibold ${active ? "bg-[#c2410c] text-white" : "bg-[#1a1744] text-[#f6f1e8]"}`}>
+                    {member.name.slice(0, 1)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{member.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{member.role === "EMPLOYEE" ? member.title || "Employee" : member.role.replace("_", " ").toLowerCase()}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="assign-due">Due date</Label>
+            <Input id="assign-due" type="date" value={dueDay} onChange={(event) => setDueDay(event.target.value)} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label>Priority</Label>
+            <div className="flex flex-wrap gap-2">
+              {PRIORITIES.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setPriority(item.value)}
+                  className={`rounded-full border px-3 py-1.5 text-sm ${priority === item.value ? item.tone + " bg-background" : "border-transparent bg-secondary text-muted-foreground"}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="assign-project">Project (optional)</Label>
+          <select
+            id="assign-project"
+            className="h-11 w-full rounded-lg border bg-background px-3 text-sm"
+            value={projectId}
+            onChange={(event) => setProjectId(event.target.value)}
+          >
+            <option value="">No project · Inbox</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-t pt-5">
+          <Button type="submit" variant="saffron" className="h-12 px-6" disabled={busy}>
+            {busy ? "Sending…" : chosen ? `Give this to ${chosen.name.split(" ")[0]}` : "Give this work"}
+          </Button>
+          <p className="text-sm text-muted-foreground">They will see it under My work, with a notification.</p>
+        </div>
+      </form>
+
+      <details className="rounded-2xl border bg-card p-4">
+        <summary className="cursor-pointer font-medium">Hand off an existing open task</summary>
+        <div className="mt-4 grid gap-3 md:grid-cols-[1.4fr_1fr_auto]">
+          <label className="text-sm">
+            Task
+            <select aria-label="Existing task" className="mt-1 h-11 w-full rounded-lg border bg-background px-3" value={handoffId} onChange={(event) => setHandoffId(event.target.value)}>
+              <option value="">Choose a task</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>{task.title}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            Person
+            <select aria-label="Handoff person" className="mt-1 h-11 w-full rounded-lg border bg-background px-3" value={handoffPerson} onChange={(event) => setHandoffPerson(event.target.value)}>
+              <option value="">Choose a person</option>
+              {people.map((member) => (
+                <option key={member.id} value={member.id}>{member.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
+            <Button type="button" variant="outline" className="h-11 w-full" disabled={busy} onClick={() => void handoffExisting()}>
+              Assign
+            </Button>
+          </div>
+        </div>
+      </details>
+    </ManagerShell>
+  );
+}
+
+export function AssignAdmin() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Opening Give work…</p>}>
+      <AssignAdminForm />
+    </Suspense>
   );
 }
 
@@ -100,16 +425,17 @@ export function PeopleAdmin() {
   const [csv, setCsv] = useState("email,name,role\n");
   const [link, setLink] = useState("");
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">People</h1>
-      <AdminNav />
-      <form className="grid gap-2 rounded-2xl border bg-card p-4 md:grid-cols-4" onSubmit={async (event) => {
-        event.preventDefault();
-        const result = await api<{ url?: string }>("/api/v1/invites", { method: "POST", body: JSON.stringify({ email, name, role }) });
-        setLink(result.url ?? "Invite emailed");
-        setEmail("");
-        await refresh();
-      }}>
+    <ManagerShell eyebrow="People" title="Invite your team" hint="Employees join with a link, then receive work from Give work.">
+      <form
+        className="grid gap-2 rounded-2xl border bg-card p-4 md:grid-cols-4"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const result = await api<{ url?: string }>("/api/v1/invites", { method: "POST", body: JSON.stringify({ email, name, role }) });
+          setLink(result.url ?? "Invite emailed");
+          setEmail("");
+          await refresh();
+        }}
+      >
         <Input aria-label="Email" placeholder="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <Input aria-label="Name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} />
         <select aria-label="Role" className="h-10 rounded-lg border bg-card px-2" value={role} onChange={(event) => setRole(event.target.value)}>
@@ -119,11 +445,14 @@ export function PeopleAdmin() {
         <Button type="submit">Invite</Button>
       </form>
       {link && <p className="text-sm">Invite link: <a className="underline" href={link}>{link}</a></p>}
-      <form className="space-y-2" onSubmit={async (event) => { event.preventDefault(); const rows = await api<{ url?: string }[]>("/api/v1/invites/csv", { method: "POST", body: JSON.stringify({ csv }) }); toast.success(`${rows.length} invites created`); }}>
-        <Label>CSV import</Label>
-        <Textarea value={csv} onChange={(event) => setCsv(event.target.value)} aria-label="CSV invites" />
-        <Button type="submit" variant="outline">Import</Button>
-      </form>
+      <details className="rounded-2xl border bg-card p-4">
+        <summary className="cursor-pointer text-sm text-muted-foreground">Bulk CSV invite</summary>
+        <form className="mt-3 space-y-2" onSubmit={async (event) => { event.preventDefault(); const rows = await api<{ url?: string }[]>("/api/v1/invites/csv", { method: "POST", body: JSON.stringify({ csv }) }); toast.success(`${rows.length} invites created`); }}>
+          <Label>CSV import</Label>
+          <Textarea value={csv} onChange={(event) => setCsv(event.target.value)} aria-label="CSV invites" />
+          <Button type="submit" variant="outline">Import</Button>
+        </form>
+      </details>
       <ul className="divide-y rounded-2xl border bg-card">
         {data.members.map((member) => (
           <li key={member.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
@@ -132,21 +461,21 @@ export function PeopleAdmin() {
           </li>
         ))}
       </ul>
-    </div>
+    </ManagerShell>
   );
 }
 
 export function PersonAdmin({ userId }: { userId: string }) {
   const { data, refresh } = useWorkspace();
+  const router = useRouter();
   const [profile, setProfile] = useState<{ member: { name: string; email: string; role: string; active: boolean; title: string | null }; open: number; done: number; tasks: { id: string; title: string; status: string }[] } | null>(null);
   const [resetUrl, setResetUrl] = useState("");
   useEffect(() => { api<NonNullable<typeof profile>>(`/api/v1/members/${userId}`).then(setProfile).catch((err) => toast.error(err.message)); }, [userId]);
   if (!profile) return <p>Loading profile…</p>;
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">{profile.member.name}</h1>
-      <p>{profile.member.email} · {profile.open} open · {profile.done} done</p>
+    <ManagerShell eyebrow="Person" title={profile.member.name} hint={`${profile.member.email} · ${profile.open} open · ${profile.done} done`}>
       <div className="flex flex-wrap gap-2">
+        <Button variant="saffron" onClick={() => router.push(`/admin/assign?to=${userId}`)}>Give work</Button>
         {data.me.role === "SUPER_ADMIN" && (
           <Button variant="outline" onClick={async () => { await api(`/api/v1/members/${userId}`, { method: "PATCH", body: JSON.stringify({ role: profile.member.role === "ADMIN" ? "EMPLOYEE" : "ADMIN" }) }); toast.success("Role updated"); await refresh(); location.reload(); }}>Toggle admin</Button>
         )}
@@ -154,45 +483,8 @@ export function PersonAdmin({ userId }: { userId: string }) {
         <Button variant="outline" onClick={async () => { const result = await api<{ url?: string }>(`/api/v1/members/${userId}/reset`, { method: "POST" }); setResetUrl(result.url ?? "Reset email sent"); }}>Send password reset</Button>
       </div>
       {resetUrl && <p className="text-sm break-all">{resetUrl}</p>}
-      <ul>{profile.tasks.map((task) => <li key={task.id} className="text-sm">{task.status} · {task.title}</li>)}</ul>
-    </div>
-  );
-}
-
-export function AssignAdmin() {
-  const { data } = useWorkspace();
-  const [tasks, setTasks] = useState<TaskDTO[]>([]);
-  const [pickedTasks, setPickedTasks] = useState<string[]>([]);
-  const [people, setPeople] = useState<string[]>([]);
-  const [priority, setPriority] = useState(2);
-  const [due, setDue] = useState("");
-  useEffect(() => { api<TaskDTO[]>("/api/v1/tasks?view=search").then(setTasks).catch(() => setTasks([])); }, []);
-  const open = tasks.filter((task) => task.status !== "DONE");
-  return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">Assign work</h1>
-      <AdminNav />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <fieldset className="rounded-2xl border bg-card p-3">
-          <legend className="px-1 text-sm">Tasks</legend>
-          {open.map((task) => <label key={task.id} className="flex gap-2 py-1 text-sm"><input type="checkbox" checked={pickedTasks.includes(task.id)} onChange={(event) => setPickedTasks((current) => event.target.checked ? [...current, task.id] : current.filter((id) => id !== task.id))} />{task.title}</label>)}
-        </fieldset>
-        <fieldset className="rounded-2xl border bg-card p-3">
-          <legend className="px-1 text-sm">People</legend>
-          {data.members.filter((member) => member.active).map((member) => <label key={member.id} className="flex gap-2 py-1 text-sm"><input type="checkbox" checked={people.includes(member.id)} onChange={(event) => setPeople((current) => event.target.checked ? [...current, member.id] : current.filter((id) => id !== member.id))} />{member.name}</label>)}
-        </fieldset>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <select aria-label="Priority" className="h-10 rounded-lg border bg-card px-2" value={priority} onChange={(event) => setPriority(Number(event.target.value))}>
-          <option value={1}>P1</option><option value={2}>P2</option><option value={3}>P3</option><option value={4}>P4</option>
-        </select>
-        <Input type="datetime-local" aria-label="Deadline" value={due} onChange={(event) => setDue(event.target.value)} />
-        <Button onClick={async () => {
-          await api("/api/v1/tasks/bulk", { method: "POST", body: JSON.stringify({ ids: pickedTasks, assigneeIds: people, priority, dueAt: due ? new Date(due).toISOString() : undefined }) });
-          toast.success("Assigned");
-        }}>Assign</Button>
-      </div>
-    </div>
+      <ul className="divide-y rounded-2xl border bg-card">{profile.tasks.map((task) => <li key={task.id} className="px-4 py-2 text-sm">{task.status} · {task.title}</li>)}</ul>
+    </ManagerShell>
   );
 }
 
@@ -202,23 +494,21 @@ export function WorkloadAdmin() {
   if (!data) return <p>Loading workload…</p>;
   const max = Math.max(1, ...data.rows.flatMap((row) => row.counts));
   return (
-    <div>
-      <h1 className="font-display text-4xl">Workload this week</h1>
-      <AdminNav />
-      <div className="mt-4 overflow-auto">
+    <ManagerShell eyebrow="Workload" title="This week’s load" hint="A quiet view of how much is sitting with each person.">
+      <div className="overflow-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
-          <thead><tr><th className="p-2 text-left">Person</th>{data.days.map((day) => <th key={day} className="p-2">{day.slice(5)}</th>)}</tr></thead>
+          <thead><tr><th className="p-3 text-left">Person</th>{data.days.map((day) => <th key={day} className="p-3">{day.slice(5)}</th>)}</tr></thead>
           <tbody>
             {data.rows.map((row) => (
               <tr key={row.id}>
-                <td className="p-2">{row.name}</td>
-                {row.counts.map((count, index) => <td key={index} className="p-2 text-center" style={{ background: `rgba(232,97,10,${count / max})` }}>{count || ""}</td>)}
+                <td className="p-3">{row.name}</td>
+                {row.counts.map((count, index) => <td key={index} className="p-3 text-center" style={{ background: `rgba(232,97,10,${count / max})` }}>{count || ""}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </ManagerShell>
   );
 }
 
@@ -226,9 +516,7 @@ export function ProjectsAdmin() {
   const { data, refresh } = useWorkspace();
   const [name, setName] = useState("");
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">Projects</h1>
-      <AdminNav />
+    <ManagerShell eyebrow="Projects" title="Projects" hint="Create a shared bucket, then assign people into it from Give work.">
       <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); await api("/api/v1/projects", { method: "POST", body: JSON.stringify({ name, memberIds: data.members.map((member) => member.id) }) }); setName(""); await refresh(); }}>
         <Input aria-label="Project name" value={name} onChange={(event) => setName(event.target.value)} placeholder="New project" required />
         <Button type="submit">Create</Button>
@@ -241,7 +529,7 @@ export function ProjectsAdmin() {
           </li>
         ))}
       </ul>
-    </div>
+    </ManagerShell>
   );
 }
 
@@ -268,9 +556,7 @@ export function ReportsAdmin() {
     };
   }, []);
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">Reports</h1>
-      <AdminNav />
+    <ManagerShell eyebrow="Reports" title="Reports" hint="Export when you need it. Day-to-day assigning stays on Give work.">
       <div className="flex flex-wrap gap-2">
         <Input type="date" aria-label="From" value={from} onChange={(event) => setFrom(event.target.value)} />
         <Input type="date" aria-label="To" value={to} onChange={(event) => setTo(event.target.value)} />
@@ -286,7 +572,7 @@ export function ReportsAdmin() {
       </table>
       <h2 className="font-display text-2xl">Projects</h2>
       <ul>{report?.perProject.map((row) => <li key={row.name}>{row.name}: {row.open} open, {row.completed} done</li>)}</ul>
-    </div>
+    </ManagerShell>
   );
 }
 
@@ -294,13 +580,11 @@ export function AuditAdmin() {
   const [rows, setRows] = useState<{ id: string; action: string; actor: string; createdAt: string; entityType: string }[]>([]);
   useEffect(() => { api<typeof rows>("/api/v1/admin/audit").then(setRows); }, []);
   return (
-    <div>
-      <h1 className="font-display text-4xl">Audit log</h1>
-      <AdminNav />
-      <ul className="mt-4 divide-y rounded-2xl border bg-card">
+    <ManagerShell eyebrow="Audit" title="Audit log" hint="Who changed what, for the record.">
+      <ul className="divide-y rounded-2xl border bg-card">
         {rows.map((row) => <li key={row.id} className="px-3 py-2 text-sm">{new Date(row.createdAt).toLocaleString()} · {row.actor} · {row.action} · {row.entityType}</li>)}
       </ul>
-    </div>
+    </ManagerShell>
   );
 }
 
@@ -315,9 +599,7 @@ export function SettingsAdmin() {
   const [email, setEmail] = useState(data.org.emailOnAssign);
   const [label, setLabel] = useState("");
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-4xl">Workspace settings</h1>
-      <AdminNav />
+    <ManagerShell eyebrow="Settings" title="Workspace settings" hint="Quiet defaults. Change these once, then spend your day on Give work.">
       <form className="grid max-w-xl gap-3" onSubmit={async (event) => {
         event.preventDefault();
         await api("/api/v1/admin/settings", { method: "PATCH", body: JSON.stringify({ name, timezone, workStart, workEnd, digestHour, notifyOnAssign: notify, emailOnAssign: email }) });
@@ -342,6 +624,6 @@ export function SettingsAdmin() {
         <Button type="submit" variant="outline">Add label</Button>
       </form>
       <ul className="flex flex-wrap gap-2">{data.labels.map((item) => <li key={item.id}><button className="rounded-full border px-3 py-1 text-sm" onClick={async () => { await api(`/api/v1/labels/${item.id}`, { method: "DELETE" }); await refresh(); }}>{item.name} ×</button></li>)}</ul>
-    </div>
+    </ManagerShell>
   );
 }

@@ -165,7 +165,7 @@ export function WorkspaceProvider({ initial, children }: { initial: Bootstrap; c
           </Link>
         ))}
         {isManager(data.me.role) && (
-          <Link href="/admin" className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#fdba74] hover:bg-white/5">
+          <Link href="/admin/assign" className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#fdba74] hover:bg-white/5">
             <Shield className="h-4 w-4" /> {t("nav.admin")}
           </Link>
         )}
@@ -243,7 +243,7 @@ export function WorkspaceProvider({ initial, children }: { initial: Bootstrap; c
               ["/assigned", "Mine"],
               ["/admin", "More"],
             ].map(([href, label]) => (
-              <Link key={href} href={isManager(data.me.role) || href !== "/admin" ? href : "/settings"} className="flex-1 py-3 text-center text-xs">
+              <Link key={href} href={isManager(data.me.role) || href !== "/admin" ? (href === "/admin" ? "/admin/assign" : href) : "/settings"} className="flex-1 py-3 text-center text-xs">
                 {label}
               </Link>
             ))}
