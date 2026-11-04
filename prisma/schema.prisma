@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum ReminderChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Organization {
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  logoKey         String?
+  timezone        String         @default("Asia/Kolkata")
+  workingDays     Int[]          @default([1, 2, 3, 4, 5])
+  workStart       String         @default("09:30")
+  workEnd         String         @default("18:30")
+  notifyOnAssign  Boolean        @default(true)
+  emailOnAssign   Boolean        @default(true)
+  digestHour      Int            @default(8)
+  weeklyReportDay Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  memberships     Membership[]
+  projects        Project[]
+  tasks           Task[]
+  labels          Label[]
+  invites         Invite[]
+  activity        ActivityLog[]
+  notifications   Notification[]
+  filters         SavedFilter[]
+  aiUsage         AiUsage[]
+  emails          EmailOutbox[]
+}
+
+model User {
+  id              String              @id @default(cuid())
+  name            String
+  email           String              @unique
+  passwordHash    String?
+  emailVerified   DateTime?
+  image           String?
+  locale          String              @default("en")
+  theme           String              @default("system")
+  failedLogins    Int                 @default(0)
+  lockedUntil     DateTime?
+  onboardingDone       Boolean  @default(false)
+  activeOrganizationId String?
+  pushEndpoint         String?
+  pushP256dh      String?
+  pushAuth        String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  memberships     Membership[]
+  accounts        Account[]
+  sessions        Session[]
+  reportedTasks   Task[]              @relation("Reporter")
+  assignments     TaskAssignee[]
+  comments        Comment[]
+  attachments     Attachment[]
+  reminders       Reminder[]
+  notifications   Notification[]
+  activity        ActivityLog[]
+  invitesSent     Invite[]
+  filters         SavedFilter[]
+  aiUsage         AiUsage[]
+  projectMembers  ProjectMember[]
+  resets          PasswordReset[]
+  verifications   EmailVerification[]
+  timeEntries     TimeEntry[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role
+  active         Boolean      @default(true)
+  title          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role, active])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String          @default("#e8610a")
+  archivedAt     DateTime?
+  position       Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sections       Section[]
+  tasks          Task[]
+  members        ProjectMember[]
+
+  @@index([organizationId, archivedAt])
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(EDITOR)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Section {
+  id        String  @id @default(cuid())
+  projectId String
+  name      String
+  position  Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([projectId, position])
+}
+
+model Task {
+  id              String         @id @default(cuid())
+  organizationId  String
+  projectId       String?
+  sectionId       String?
+  parentId        String?
+  title           String
+  description     String?        @db.Text
+  status          TaskStatus     @default(TODO)
+  priority        Int            @default(4)
+  dueAt           DateTime?
+  startAt         DateTime?
+  estimateMinutes Int?
+  trackedMinutes  Int            @default(0)
+  position        Float          @default(0)
+  reporterId      String
+  completedAt     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project         Project?       @relation(fields: [projectId], references: [id])
+  section         Section?       @relation(fields: [sectionId], references: [id])
+  parent          Task?          @relation("Subtasks", fields: [parentId], references: [id])
+  children        Task[]         @relation("Subtasks")
+  reporter        User           @relation("Reporter", fields: [reporterId], references: [id])
+  assignees       TaskAssignee[]
+  labels          TaskLabel[]
+  comments        Comment[]
+  attachments     Attachment[]
+  reminders       Reminder[]
+  checklist       ChecklistItem[]
+  recurrence      RecurringRule?
+  timeEntries     TimeEntry[]
+
+  @@index([organizationId, deletedAt, status])
+  @@index([organizationId, dueAt])
+  @@index([parentId])
+  @@index([projectId, sectionId])
+  @@index([reporterId])
+}
+
+model TaskAssignee {
+  taskId String
+  userId String
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+model Label {
+  id             String      @id @default(cuid())
+  organizationId String
+  name           String
+  color          String      @default("#312e81")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks          TaskLabel[]
+
+  @@unique([organizationId, name])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+  task    Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+}
+
+model ChecklistItem {
+  id       String  @id @default(cuid())
+  taskId   String
+  title    String
+  done     Boolean @default(false)
+  position Int     @default(0)
+  task     Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([taskId, createdAt])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  uploadedById String
+  filename     String
+  mime         String
+  size         Int
+  storageKey   String
+  createdAt    DateTime @default(now())
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+}
+
+model Reminder {
+  id       String          @id @default(cuid())
+  taskId   String
+  userId   String
+  remindAt DateTime
+  channel  ReminderChannel @default(IN_APP)
+  sentAt   DateTime?
+  task     Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt, remindAt])
+}
+
+model RecurringRule {
+  id         String    @id @default(cuid())
+  taskId     String    @unique
+  frequency  String
+  interval   Int       @default(1)
+  byWeekday  Int[]     @default([])
+  ordinal    Int?
+  customText String?
+  timezone   String    @default("Asia/Kolkata")
+  nextRunAt  DateTime?
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  body           String
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Invite {
+  id             String       @id @default(cuid())
+  organizationId String
+  email          String
+  name           String?
+  role           Role         @default(EMPLOYEE)
+  tokenHash      String       @unique
+  status         InviteStatus @default(PENDING)
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation(fields: [invitedById], references: [id])
+
+  @@index([organizationId, email])
+}
+
+model SavedFilter {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  name           String
+  query          String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiUsage {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  feature        String
+  tokensIn       Int          @default(0)
+  tokensOut      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model EmailOutbox {
+  id             String        @id @default(cuid())
+  organizationId String?
+  to             String
+  subject        String
+  html           String        @db.Text
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  minutes   Int
+  note      String?
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
