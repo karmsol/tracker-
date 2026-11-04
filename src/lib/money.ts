@@ -8,6 +8,11 @@ export function formatInr(amount: number) {
   return inr.format(Math.round(amount));
 }
 
+/** ASCII-safe INR for PDFs (Helvetica/WinAnsi cannot encode ₹). */
+export function formatInrPlain(amount: number) {
+  return `Rs. ${Math.round(amount).toLocaleString("en-IN")}`;
+}
+
 export function monthLabel(year: number, month: number, locale = "en-IN") {
   return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(
     new Date(Date.UTC(year, month - 1, 1)),

@@ -39,6 +39,7 @@ import {
   getPayslip,
   listMyPayslips,
   listPayDesk,
+  payslipPdf,
   updatePayslip,
   upsertSalary,
 } from "./salary";
@@ -258,6 +259,15 @@ export async function dispatch(request: Request, parts: string[]) {
   }
   if (a === "payslips" && !b && method === "GET") return json(await listMyPayslips(ctx));
   if (a === "payslips" && b && c === "email" && method === "POST") return json(await emailPayslip(ctx, b));
+  if (a === "payslips" && b && c === "pdf" && method === "GET") {
+    const file = await payslipPdf(ctx, b);
+    return new Response(new Uint8Array(file.bytes), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${file.filename}"`,
+      },
+    });
+  }
   if (a === "payslips" && b && !c && method === "GET") return json(await getPayslip(ctx, b));
   if (a === "payslips" && b && !c && method === "PATCH") {
     const body = z.object({
@@ -284,6 +294,7 @@ export async function dispatch(request: Request, parts: string[]) {
       emailOnAssign: z.boolean().optional(),
       digestHour: z.number().int().min(0).max(23).optional(),
       weeklyReportDay: z.number().int().min(0).max(6).optional(),
+      payrollDay: z.number().int().min(1).max(28).optional(),
     }).parse(await readJson(request));
     await updateSettings(ctx, body);
     return json({ ok: true });

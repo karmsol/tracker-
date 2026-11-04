@@ -40,6 +40,7 @@ async function contextFor(userId: string, organizationId: string): Promise<AppCo
       emailOnAssign: membership.organization.emailOnAssign,
       digestHour: membership.organization.digestHour,
       weeklyReportDay: membership.organization.weeklyReportDay,
+      payrollDay: membership.organization.payrollDay,
       logoKey: membership.organization.logoKey,
     },
     ip: "job",
@@ -81,12 +82,52 @@ export async function runJobs() {
     await prisma.reminder.update({ where: { id: reminder.id }, data: { sentAt: now } });
   }
 
+  try {
+    const { pruneOldPayslips } = await import("@/server/salary");
+    const removed = await pruneOldPayslips();
+    if (removed) log("info", "Pruned old salary slips", { removed });
+  } catch (error) {
+    log("warn", "Could not prune salary slips", { error: String(error) });
+  }
+
   const orgs = await prisma.organization.findMany({ include: { memberships: { where: { active: true }, include: { user: true } } } });
   for (const org of orgs) {
-    const hour = getZonedParts(now, org.timezone).hour;
-    const weekday = getZonedParts(now, org.timezone).weekday;
-    if (hour !== org.digestHour) continue;
+    const parts = getZonedParts(now, org.timezone);
+    const hour = parts.hour;
+    const weekday = parts.weekday;
+    const day = parts.day;
     const start = startOfZonedDay(now, org.timezone);
+
+    if (day === org.payrollDay && hour === org.digestHour) {
+      const managers = org.memberships.filter((member) => member.role === "ADMIN" || member.role === "SUPER_ADMIN");
+      for (const manager of managers) {
+        const already = await prisma.notification.findFirst({
+          where: { userId: manager.userId, type: "pay.due", createdAt: { gte: start } },
+        });
+        if (already) continue;
+        const title = "Salary time is here";
+        const body = `Today is payroll day for ${org.name}. Prepare and send this month’s salary slips.`;
+        await prisma.notification.create({
+          data: {
+            organizationId: org.id,
+            userId: manager.userId,
+            type: "pay.due",
+            title,
+            body,
+            link: "/admin/pay",
+          },
+        });
+        publish(manager.userId, { type: "pay.due", title, body, link: "/admin/pay" });
+        await sendEmail({
+          to: manager.user.email,
+          subject: title,
+          organizationId: org.id,
+          html: emailShell(title, `<p>${body}</p><p><a href="${appUrl("/admin/pay")}">Open payroll</a></p>`),
+        });
+      }
+    }
+
+    if (hour !== org.digestHour) continue;
     for (const membership of org.memberships) {
       const already = await prisma.notification.findFirst({
         where: { userId: membership.userId, type: "digest", createdAt: { gte: start } },

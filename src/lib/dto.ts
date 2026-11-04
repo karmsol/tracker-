@@ -71,6 +71,7 @@ export type Bootstrap = {
     emailOnAssign: boolean;
     digestHour: number;
     weeklyReportDay: number;
+    payrollDay: number;
     hasLogo: boolean;
   };
   members: MemberDTO[];

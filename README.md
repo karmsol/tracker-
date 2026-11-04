@@ -50,7 +50,9 @@ docker compose up --build
 - Priorities, labels, checklist, comments with @mentions, files, reminders, and recurrence
 - Admin desk: give work, people, pay, workload, reports (CSV and PDF), audit log, workspace settings
 - Salary packages in INR, monthly payslips, and email delivery (or EmailOutbox when no mail provider is set)
-- Employees open **My pay** for their own slips only
+- About one year of slips stay online for employees and managers, with PDF download
+- Admins get a payroll-day notification (and email) when salary time arrives — set the day under Settings
+- Employees open **My pay** for their own slips; managers use **Payrolls**
 - Assistant quick add with a preview card, task breakdown, smart assign, and a chat that asks before it deletes anything
 - English and Hindi chrome, light and dark, installable PWA
 

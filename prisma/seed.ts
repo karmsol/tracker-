@@ -27,8 +27,15 @@ async function seedPay(orgId: string, usersByEmail: Record<string, string>, make
     ["meera.iyer@karmkaro.dev", 95000, 38000, 10000, 11400, 5000, "7707"],
   ];
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() + 1;
+  const months: { year: number; month: number }[] = [];
+  for (let offset = 11; offset >= 0; offset--) {
+    const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+    months.push({ year: cursor.getUTCFullYear(), month: cursor.getUTCMonth() + 1 });
+  }
+  await prisma.organization.update({
+    where: { id: orgId },
+    data: { payrollDay: 1 },
+  });
   for (const [email, base, hra, special, pf, tax, bank] of packages) {
     const userId = usersByEmail[email];
     if (!userId) continue;
@@ -56,40 +63,62 @@ async function seedPay(orgId: string, usersByEmail: Record<string, string>, make
         bankLast4: bank,
       },
     });
-    await prisma.payslip.upsert({
-      where: {
-        organizationId_userId_year_month: { organizationId: orgId, userId, year, month },
-      },
-      create: {
-        organizationId: orgId,
-        userId,
-        generatedById: makerId,
-        year,
-        month,
-        baseSalary: base,
-        hra,
-        specialAllowance: special,
-        gross,
-        pfDeduction: pf,
-        taxDeduction: tax,
-        otherDeduction: 0,
-        totalDeductions,
-        netPay,
-        bankLast4: bank,
-        status: "ISSUED",
-      },
-      update: {
-        baseSalary: base,
-        hra,
-        specialAllowance: special,
-        gross,
-        pfDeduction: pf,
-        taxDeduction: tax,
-        totalDeductions,
-        netPay,
-        bankLast4: bank,
-      },
+    for (const { year, month } of months) {
+      await prisma.payslip.upsert({
+        where: {
+          organizationId_userId_year_month: { organizationId: orgId, userId, year, month },
+        },
+        create: {
+          organizationId: orgId,
+          userId,
+          generatedById: makerId,
+          year,
+          month,
+          baseSalary: base,
+          hra,
+          specialAllowance: special,
+          gross,
+          pfDeduction: pf,
+          taxDeduction: tax,
+          otherDeduction: 0,
+          totalDeductions,
+          netPay,
+          bankLast4: bank,
+          status: "EMAILED",
+          emailedAt: new Date(Date.UTC(year, month - 1, 2, 4, 0, 0)),
+        },
+        update: {
+          baseSalary: base,
+          hra,
+          specialAllowance: special,
+          gross,
+          pfDeduction: pf,
+          taxDeduction: tax,
+          totalDeductions,
+          netPay,
+          bankLast4: bank,
+          status: "EMAILED",
+        },
+      });
+    }
+  }
+  const arjunId = usersByEmail["arjun.mehta@karmkaro.dev"];
+  if (arjunId) {
+    const existingPayDue = await prisma.notification.findFirst({
+      where: { organizationId: orgId, userId: arjunId, type: "pay.due" },
     });
+    if (!existingPayDue) {
+      await prisma.notification.create({
+        data: {
+          organizationId: orgId,
+          userId: arjunId,
+          type: "pay.due",
+          title: "Salary time is here",
+          body: "Today is payroll day for Indus Collective. Prepare and send this month’s salary slips.",
+          link: "/admin/pay",
+        },
+      });
+    }
   }
 }
 

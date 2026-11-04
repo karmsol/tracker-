@@ -596,6 +596,7 @@ export function SettingsAdmin() {
   const [workStart, setWorkStart] = useState(data.org.workStart);
   const [workEnd, setWorkEnd] = useState(data.org.workEnd);
   const [digestHour, setDigestHour] = useState(data.org.digestHour);
+  const [payrollDay, setPayrollDay] = useState(data.org.payrollDay);
   const [notify, setNotify] = useState(data.org.notifyOnAssign);
   const [email, setEmail] = useState(data.org.emailOnAssign);
   const [label, setLabel] = useState("");
@@ -603,7 +604,7 @@ export function SettingsAdmin() {
     <ManagerShell eyebrow="Settings" title="Workspace settings" hint="Quiet defaults. Change these once, then spend your day on Give work.">
       <form className="grid max-w-xl gap-3" onSubmit={async (event) => {
         event.preventDefault();
-        await api("/api/v1/admin/settings", { method: "PATCH", body: JSON.stringify({ name, timezone, workStart, workEnd, digestHour, notifyOnAssign: notify, emailOnAssign: email }) });
+        await api("/api/v1/admin/settings", { method: "PATCH", body: JSON.stringify({ name, timezone, workStart, workEnd, digestHour, payrollDay, notifyOnAssign: notify, emailOnAssign: email }) });
         toast.success("Saved");
         await refresh();
       }}>
@@ -615,6 +616,9 @@ export function SettingsAdmin() {
         <div className="flex gap-2"><Input value={workStart} onChange={(event) => setWorkStart(event.target.value)} /><Input value={workEnd} onChange={(event) => setWorkEnd(event.target.value)} /></div>
         <Label>Morning digest hour ({timezone})</Label>
         <Input type="number" min={0} max={23} value={digestHour} onChange={(event) => setDigestHour(Number(event.target.value))} />
+        <Label>Payroll day of month (1–28)</Label>
+        <Input type="number" min={1} max={28} value={payrollDay} onChange={(event) => setPayrollDay(Number(event.target.value))} />
+        <p className="text-sm text-muted-foreground">On this day, at the digest hour, admins get a notification that salary time has come.</p>
         <label className="flex gap-2 text-sm"><input type="checkbox" checked={notify} onChange={(event) => setNotify(event.target.checked)} /> Notify in the app when work is assigned</label>
         <label className="flex gap-2 text-sm"><input type="checkbox" checked={email} onChange={(event) => setEmail(event.target.checked)} /> Also send email</label>
         <p className="text-sm text-muted-foreground">Working days: {data.org.workingDays.join(", ")} (0 is Sunday)</p>

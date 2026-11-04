@@ -332,7 +332,12 @@ export function PayAdmin() {
         <h1 className="font-display text-4xl md:text-5xl">Salaries and slips</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           1) Tick who is in this month · 2) Save or edit amounts · 3) Generate drafts · 4) Email only when ready.
-          Untick someone to leave them out. Remove a slip if it should not go out.
+          Untick someone to leave them out. Remove a slip if it should not go out. Slips stay available for about one year.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Payroll day is the {data.org.payrollDay}
+          {data.org.payrollDay === 1 ? "st" : data.org.payrollDay === 2 ? "nd" : data.org.payrollDay === 3 ? "rd" : "th"} of each month
+          — admins are notified when salary time arrives. Change it under Settings.
         </p>
       </header>
       <AdminNav />
@@ -423,6 +428,31 @@ export function PayAdmin() {
                         variant="outline"
                         disabled={busy}
                         onClick={async () => {
+                          const response = await fetch(`/api/v1/payslips/${person.thisMonthSlipId}/pdf`);
+                          if (!response.ok) {
+                            toast.error("Could not download PDF");
+                            return;
+                          }
+                          const blob = await response.blob();
+                          const disposition = response.headers.get("Content-Disposition") || "";
+                          const match = /filename="([^"]+)"/.exec(disposition);
+                          const filename = match?.[1] ?? `salary-slip-${person.name.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+                          const url = URL.createObjectURL(blob);
+                          const anchor = document.createElement("a");
+                          anchor.href = url;
+                          anchor.download = filename;
+                          anchor.click();
+                          URL.revokeObjectURL(url);
+                          toast.success("Salary slip downloaded");
+                        }}
+                      >
+                        Download PDF
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={async () => {
                           await api(`/api/v1/payslips/${person.thisMonthSlipId}/email`, { method: "POST" });
                           toast.success(`Slip emailed to ${person.email}`);
                           await load();
@@ -492,8 +522,8 @@ export function MyPay() {
         <h1 className="font-display text-4xl">{manager ? "Payrolls" : "Your salary slips"}</h1>
         <p className="text-sm text-muted-foreground">
           {manager
-            ? "This page shows payroll slips. To add or remove people from a month, or edit before send, use Manage payroll."
-            : "When payroll runs, your slip lands here and in your email."}
+            ? "About one year of slips stay here for download. To add or remove people from a month, or edit before send, use Manage payroll."
+            : "About one year of your salary slips stay here. Open any month and download the PDF."}
         </p>
         {manager && (
           <Button asChild variant="saffron">
@@ -572,6 +602,36 @@ export function MyPay() {
               {active.bankLast4 && !editing && <p className="mt-4 text-sm text-muted-foreground">Bank account ending {active.bankLast4}</p>}
 
               <div className="mt-4 flex flex-wrap gap-2">
+                {!editing && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const response = await fetch(`/api/v1/payslips/${active.id}/pdf`);
+                        if (!response.ok) throw new Error("Could not download PDF");
+                        const blob = await response.blob();
+                        const disposition = response.headers.get("Content-Disposition") || "";
+                        const match = /filename="([^"]+)"/.exec(disposition);
+                        const filename = match?.[1] ?? `salary-slip-${active.year}-${String(active.month).padStart(2, "0")}.pdf`;
+                        const url = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        anchor.download = filename;
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+                        toast.success("Salary slip downloaded");
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Could not download");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Download PDF
+                  </Button>
+                )}
                 {manager && !editing && (
                   <Button variant="outline" onClick={() => { setForm(formFromSlip(active)); setEditing(true); }}>
                     Edit before send

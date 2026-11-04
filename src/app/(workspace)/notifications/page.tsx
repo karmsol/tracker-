@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { useWorkspace } from "@/components/workspace";
@@ -21,6 +22,11 @@ export default function NotificationsPage() {
           <li key={item.id} className="rounded-xl border bg-card px-4 py-3">
             <p className="font-medium">{item.title}</p>
             <p className="text-sm text-muted-foreground">{item.body}</p>
+            {item.link && (
+              <Link href={item.link} className="mt-2 inline-block text-sm font-medium text-[#c2410c] underline">
+                {item.type === "pay.due" ? "Open payroll" : "Open"}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

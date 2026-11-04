@@ -91,6 +91,7 @@ export async function loadBootstrap(ctx: AppContext): Promise<Bootstrap> {
       emailOnAssign: ctx.org.emailOnAssign,
       digestHour: ctx.org.digestHour,
       weeklyReportDay: ctx.org.weeklyReportDay,
+      payrollDay: ctx.org.payrollDay,
       hasLogo: Boolean(ctx.org.logoKey),
     },
     members: members.map(memberDTO),
@@ -350,6 +351,7 @@ export async function updateSettings(
     emailOnAssign?: boolean;
     digestHour?: number;
     weeklyReportDay?: number;
+    payrollDay?: number;
   },
 ) {
   if (!can(ctx.role, "org.settings")) throw new ForbiddenError();
@@ -365,6 +367,7 @@ export async function updateSettings(
       emailOnAssign: input.emailOnAssign,
       digestHour: input.digestHour,
       weeklyReportDay: input.weeklyReportDay,
+      payrollDay: input.payrollDay,
     },
   });
   await audit(ctx, "org.updated", "organization", ctx.organizationId, {});

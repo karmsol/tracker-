@@ -28,6 +28,7 @@ export type AppContext = {
     emailOnAssign: boolean;
     digestHour: number;
     weeklyReportDay: number;
+    payrollDay: number;
     logoKey: string | null;
   };
   ip: string;
@@ -72,6 +73,7 @@ export async function getContext(): Promise<AppContext | null> {
       emailOnAssign: membership.organization.emailOnAssign,
       digestHour: membership.organization.digestHour,
       weeklyReportDay: membership.organization.weeklyReportDay,
+      payrollDay: membership.organization.payrollDay,
       logoKey: membership.organization.logoKey,
     },
     ip: headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || "local",

@@ -29,6 +29,7 @@ function context(user: { id: string; name: string; email: string }, organization
       emailOnAssign: true,
       digestHour: 8,
       weeklyReportDay: 1,
+      payrollDay: 1,
       logoKey: null,
     },
     ip: "test",

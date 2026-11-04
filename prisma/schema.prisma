@@ -57,6 +57,8 @@ model Organization {
   emailOnAssign   Boolean        @default(true)
   digestHour      Int            @default(8)
   weeklyReportDay Int            @default(1)
+  /// Day of month when salary slips should be prepared (1–28).
+  payrollDay      Int            @default(1)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   memberships     Membership[]

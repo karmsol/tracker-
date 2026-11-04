@@ -1,11 +1,30 @@
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { AppError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { appUrl, emailLinksExposed, emailShell, sendEmail } from "@/lib/email";
-import { computePay, formatInr, monthLabel } from "@/lib/money";
+import { computePay, formatInr, formatInrPlain, monthLabel } from "@/lib/money";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { sanitizeText } from "@/lib/sanitize";
 import type { AppContext } from "@/lib/session";
 import { audit, notifyUser } from "./notify";
+
+/** Keep about one year of slips online. */
+export const PAYSLIP_RETENTION_MONTHS = 12;
+
+export function payslipWindowStart(now = new Date()) {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const startMonth = month - (PAYSLIP_RETENTION_MONTHS - 1);
+  if (startMonth > 0) return { year, month: startMonth };
+  return { year: year - 1, month: startMonth + 12 };
+}
+
+function inRetentionWindow(year: number, month: number, now = new Date()) {
+  const start = payslipWindowStart(now);
+  if (year > start.year) return true;
+  if (year < start.year) return false;
+  return month >= start.month;
+}
 
 export type SalaryInput = {
   baseSalary: number;
@@ -357,20 +376,27 @@ export async function emailPayslipsForMonth(
 }
 
 export async function listMyPayslips(ctx: AppContext) {
+  const start = payslipWindowStart();
+  const whereWindow = {
+    OR: [
+      { year: { gt: start.year } },
+      { year: start.year, month: { gte: start.month } },
+    ],
+  };
   if (can(ctx.role, "pay.manage")) {
     const slips = await prisma.payslip.findMany({
-      where: { organizationId: ctx.organizationId },
+      where: { organizationId: ctx.organizationId, AND: [whereWindow] },
       include: { user: true },
       orderBy: [{ year: "desc" }, { month: "desc" }, { user: { name: "asc" } }],
-      take: 120,
+      take: 200,
     });
     return slips.map(toSlip);
   }
   const slips = await prisma.payslip.findMany({
-    where: { organizationId: ctx.organizationId, userId: ctx.user.id },
+    where: { organizationId: ctx.organizationId, userId: ctx.user.id, AND: [whereWindow] },
     include: { user: true },
     orderBy: [{ year: "desc" }, { month: "desc" }],
-    take: 36,
+    take: PAYSLIP_RETENTION_MONTHS,
   });
   return slips.map(toSlip);
 }
@@ -383,4 +409,69 @@ export async function getPayslip(ctx: AppContext, id: string) {
   if (!slip) throw new NotFoundError();
   if (!can(ctx.role, "pay.manage") && slip.userId !== ctx.user.id) throw new ForbiddenError();
   return toSlip(slip);
+}
+
+export async function payslipPdf(ctx: AppContext, id: string) {
+  const slipRow = await prisma.payslip.findFirst({
+    where: { id, organizationId: ctx.organizationId },
+    include: { user: true },
+  });
+  if (!slipRow) throw new NotFoundError();
+  if (!can(ctx.role, "pay.manage") && slipRow.userId !== ctx.user.id) throw new ForbiddenError();
+  if (!inRetentionWindow(slipRow.year, slipRow.month) && !can(ctx.role, "pay.manage")) {
+    throw new ForbiddenError("That slip is outside the one-year history");
+  }
+  const slip = toSlip(slipRow);
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const draw = (text: string, x: number, y: number, size = 12, useBold = false) => {
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font: useBold ? bold : font,
+      color: useBold ? rgb(0.1, 0.09, 0.2) : rgb(0.15, 0.14, 0.13),
+    });
+  };
+  draw("Karm Karo", 48, 790, 12, true);
+  page.drawText("Salary slip", { x: 48, y: 770, size: 11, font, color: rgb(0.76, 0.25, 0.05) });
+  draw(ctx.org.name, 48, 742, 20, true);
+  draw(slip.periodLabel, 48, 716, 14, true);
+  draw(slip.name ?? slipRow.user.name, 48, 688, 13, true);
+  draw(slip.email ?? slipRow.user.email, 48, 670, 11);
+  const lines: [string, string][] = [
+    ["Basic", formatInrPlain(slip.baseSalary)],
+    ["HRA", formatInrPlain(slip.hra)],
+    ["Special allowance", formatInrPlain(slip.specialAllowance)],
+    ["Gross pay", formatInrPlain(slip.gross)],
+    ["PF", `- ${formatInrPlain(slip.pfDeduction)}`],
+    ["Tax", `- ${formatInrPlain(slip.taxDeduction)}`],
+    ["Other deductions", `- ${formatInrPlain(slip.otherDeduction)}`],
+    ["Total deductions", `- ${formatInrPlain(slip.totalDeductions)}`],
+    ["Net pay", formatInrPlain(slip.netPay)],
+  ];
+  let y = 630;
+  for (const [label, value] of lines) {
+    draw(label, 48, y, 12);
+    draw(value, 360, y, 12, label === "Net pay" || label === "Gross pay");
+    y -= 24;
+  }
+  if (slip.bankLast4) draw(`Bank account ending ${slip.bankLast4}`, 48, y - 12, 11);
+  draw(`Generated for ${ctx.org.name}`, 48, 64, 10);
+  return {
+    bytes: Buffer.from(await pdf.save()),
+    filename: `salary-slip-${(slip.name ?? "employee").toLowerCase().replace(/\s+/g, "-")}-${slip.year}-${String(slip.month).padStart(2, "0")}.pdf`,
+  };
+}
+
+export async function pruneOldPayslips() {
+  const start = payslipWindowStart();
+  const deleted = await prisma.payslip.deleteMany({
+    where: {
+      OR: [{ year: { lt: start.year } }, { year: start.year, month: { lt: start.month } }],
+    },
+  });
+  return deleted.count;
 }
