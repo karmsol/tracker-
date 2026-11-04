@@ -23,6 +23,7 @@ export function AdminNav() {
   const primary = [
     ["/admin/assign", "Give work"],
     ["/admin", "Team"],
+    ["/admin/pay", "Pay"],
     ["/admin/people", "People"],
   ] as const;
   const more = [

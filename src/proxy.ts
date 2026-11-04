@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED = [/^\/(today|inbox|upcoming|overdue|completed|assigned|projects|filters|search|notifications|settings|admin|welcome)(\/|$)/];
+const PROTECTED = [/^\/(today|inbox|upcoming|overdue|completed|assigned|pay|projects|filters|search|notifications|settings|admin|welcome)(\/|$)/];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

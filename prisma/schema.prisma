@@ -38,6 +38,12 @@ enum InviteStatus {
   REVOKED
 }
 
+enum PayslipStatus {
+  DRAFT
+  ISSUED
+  EMAILED
+}
+
 model Organization {
   id              String         @id @default(cuid())
   name            String
@@ -63,6 +69,8 @@ model Organization {
   filters         SavedFilter[]
   aiUsage         AiUsage[]
   emails          EmailOutbox[]
+  salaryProfiles  SalaryProfile[]
+  payslips        Payslip[]
 }
 
 model User {
@@ -100,6 +108,9 @@ model User {
   resets          PasswordReset[]
   verifications   EmailVerification[]
   timeEntries     TimeEntry[]
+  salaryProfiles  SalaryProfile[]
+  payslips        Payslip[]         @relation("PayslipOwner")
+  payslipsMade    Payslip[]         @relation("PayslipMaker")
 }
 
 model Membership {
@@ -440,4 +451,62 @@ model TimeEntry {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([taskId, createdAt])
+}
+
+/// Monthly pay package for one person in one workspace. Amounts are whole INR.
+model SalaryProfile {
+  id               String       @id @default(cuid())
+  organizationId   String
+  userId           String
+  currency         String       @default("INR")
+  baseSalary       Int
+  hra              Int          @default(0)
+  specialAllowance Int          @default(0)
+  pfDeduction      Int          @default(0)
+  taxDeduction     Int          @default(0)
+  otherDeduction   Int          @default(0)
+  bankLast4        String?
+  panMasked        String?
+  effectiveFrom    DateTime     @default(now())
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+}
+
+model Payslip {
+  id               String         @id @default(cuid())
+  organizationId   String
+  userId           String
+  generatedById    String?
+  year             Int
+  month            Int
+  currency         String         @default("INR")
+  baseSalary       Int
+  hra              Int
+  specialAllowance Int
+  gross            Int
+  pfDeduction      Int
+  taxDeduction     Int
+  otherDeduction   Int
+  totalDeductions  Int
+  netPay           Int
+  bankLast4        String?
+  panMasked        String?
+  status           PayslipStatus  @default(ISSUED)
+  notes            String?
+  emailedAt        DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User           @relation("PayslipOwner", fields: [userId], references: [id], onDelete: Cascade)
+  generatedBy      User?          @relation("PayslipMaker", fields: [generatedById], references: [id])
+
+  @@unique([organizationId, userId, year, month])
+  @@index([organizationId, year, month])
+  @@index([userId, createdAt])
 }

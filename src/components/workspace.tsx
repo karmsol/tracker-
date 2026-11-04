@@ -7,6 +7,7 @@ import {
   Command,
   FolderKanban,
   Inbox,
+  IndianRupee,
   Languages,
   LogOut,
   Menu,
@@ -60,6 +61,7 @@ const links = [
   { href: "/overdue", key: "nav.overdue", icon: CalendarClock },
   { href: "/completed", key: "nav.completed", icon: CheckCircle2 },
   { href: "/assigned", key: "nav.assigned", icon: UserRound },
+  { href: "/pay", key: "nav.pay", icon: IndianRupee },
 ];
 
 export function WorkspaceProvider({ initial, children }: { initial: Bootstrap; children: React.ReactNode }) {

@@ -48,7 +48,9 @@ docker compose up --build
 - Inbox, Today, Upcoming, Overdue, Completed, and My assigned
 - Projects, sections, nested subtasks, list, board, calendar, and timeline
 - Priorities, labels, checklist, comments with @mentions, files, reminders, and recurrence
-- Admin desk: dashboard, people, bulk assignment, workload heatmap, reports (CSV and PDF), audit log, workspace settings
+- Admin desk: give work, people, pay, workload, reports (CSV and PDF), audit log, workspace settings
+- Salary packages in INR, monthly payslips, and email delivery (or EmailOutbox when no mail provider is set)
+- Employees open **My pay** for their own slips only
 - Assistant quick add with a preview card, task breakdown, smart assign, and a chat that asks before it deletes anything
 - English and Hindi chrome, light and dark, installable PWA
 

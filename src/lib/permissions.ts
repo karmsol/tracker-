@@ -13,6 +13,7 @@ export type Action =
   | "org.billing"
   | "reports.view"
   | "audit.view"
+  | "pay.manage"
   | "ai.smartAssign";
 
 const ALL: Action[] = [
@@ -28,6 +29,7 @@ const ALL: Action[] = [
   "org.billing",
   "reports.view",
   "audit.view",
+  "pay.manage",
   "ai.smartAssign",
 ];
 

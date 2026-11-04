@@ -8,6 +8,7 @@ describe("permissions", () => {
     expect(can("ADMIN", "org.billing")).toBe(false);
     expect(can("ADMIN", "member.promoteSuper")).toBe(false);
     expect(can("ADMIN", "reports.view")).toBe(true);
+    expect(can("ADMIN", "pay.manage")).toBe(true);
     expect(can("ADMIN", "task.assignOthers")).toBe(true);
   });
 
@@ -16,6 +17,7 @@ describe("permissions", () => {
     expect(can("EMPLOYEE", "task.readAll")).toBe(false);
     expect(can("EMPLOYEE", "member.invite")).toBe(false);
     expect(can("EMPLOYEE", "audit.view")).toBe(false);
+    expect(can("EMPLOYEE", "pay.manage")).toBe(false);
   });
 
   it("stops an admin from granting admin", () => {

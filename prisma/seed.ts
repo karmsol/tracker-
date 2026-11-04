@@ -16,10 +16,94 @@ function at(dayOffset: number, hour: number, minute = 0) {
   return zonedTimeToUtc(base.getUTCFullYear(), base.getUTCMonth() + 1, base.getUTCDate(), hour, minute, ZONE);
 }
 
+async function seedPay(orgId: string, usersByEmail: Record<string, string>, makerId: string) {
+  const packages: [string, number, number, number, number, number, string][] = [
+    ["aanya.sharma@karmkaro.dev", 180000, 72000, 18000, 21600, 12000, "1101"],
+    ["arjun.mehta@karmkaro.dev", 140000, 56000, 14000, 16800, 8000, "2202"],
+    ["rahul.verma@karmkaro.dev", 85000, 34000, 8000, 10200, 4000, "3303"],
+    ["priya.nair@karmkaro.dev", 90000, 36000, 9000, 10800, 4500, "4404"],
+    ["ananya.das@karmkaro.dev", 78000, 31200, 7000, 9360, 3500, "5505"],
+    ["vikram.singh@karmkaro.dev", 110000, 44000, 12000, 13200, 6000, "6606"],
+    ["meera.iyer@karmkaro.dev", 95000, 38000, 10000, 11400, 5000, "7707"],
+  ];
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  for (const [email, base, hra, special, pf, tax, bank] of packages) {
+    const userId = usersByEmail[email];
+    if (!userId) continue;
+    const gross = base + hra + special;
+    const totalDeductions = pf + tax;
+    const netPay = gross - totalDeductions;
+    await prisma.salaryProfile.upsert({
+      where: { organizationId_userId: { organizationId: orgId, userId } },
+      create: {
+        organizationId: orgId,
+        userId,
+        baseSalary: base,
+        hra,
+        specialAllowance: special,
+        pfDeduction: pf,
+        taxDeduction: tax,
+        bankLast4: bank,
+      },
+      update: {
+        baseSalary: base,
+        hra,
+        specialAllowance: special,
+        pfDeduction: pf,
+        taxDeduction: tax,
+        bankLast4: bank,
+      },
+    });
+    await prisma.payslip.upsert({
+      where: {
+        organizationId_userId_year_month: { organizationId: orgId, userId, year, month },
+      },
+      create: {
+        organizationId: orgId,
+        userId,
+        generatedById: makerId,
+        year,
+        month,
+        baseSalary: base,
+        hra,
+        specialAllowance: special,
+        gross,
+        pfDeduction: pf,
+        taxDeduction: tax,
+        otherDeduction: 0,
+        totalDeductions,
+        netPay,
+        bankLast4: bank,
+        status: "ISSUED",
+      },
+      update: {
+        baseSalary: base,
+        hra,
+        specialAllowance: special,
+        gross,
+        pfDeduction: pf,
+        taxDeduction: tax,
+        totalDeductions,
+        netPay,
+        bankLast4: bank,
+      },
+    });
+  }
+}
+
 async function main() {
   const existing = await prisma.organization.findUnique({ where: { slug: "indus-collective" } });
   if (existing) {
-    console.log("Seed already present");
+    const members = await prisma.membership.findMany({
+      where: { organizationId: existing.id },
+      include: { user: true },
+    });
+    const byEmail = Object.fromEntries(members.map((member) => [member.user.email, member.userId]));
+    const maker = byEmail["arjun.mehta@karmkaro.dev"] || members[0]?.userId;
+    if (maker) await seedPay(existing.id, byEmail, maker);
+    console.log("Seed already present; pay packages refreshed");
     return;
   }
   const passwordHash = await hash(PASSWORD, 10);
@@ -194,6 +278,11 @@ async function main() {
       { organizationId: org.id, actorId: arjun.id, action: "task.assigned", entityType: "task", entityId: invoices?.id, metadata: { userId: meera.id } },
     ],
   });
+  await seedPay(
+    org.id,
+    Object.fromEntries(users.map((user) => [user.email, user.id])),
+    arjun.id,
+  );
   console.log("Seeded Indus Collective");
 }
 
