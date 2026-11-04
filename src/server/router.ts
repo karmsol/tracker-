@@ -32,12 +32,14 @@ import {
   workload,
 } from "./org";
 import {
+  deletePayslip,
   emailPayslip,
   emailPayslipsForMonth,
   generatePayslips,
   getPayslip,
   listMyPayslips,
   listPayDesk,
+  updatePayslip,
   upsertSalary,
 } from "./salary";
 import {
@@ -250,12 +252,27 @@ export async function dispatch(request: Request, parts: string[]) {
     const body = z.object({
       year: z.number().int().min(2020).max(2100),
       month: z.number().int().min(1).max(12),
+      userIds: z.array(z.string()).max(200).optional(),
     }).parse(await readJson(request));
-    return json(await emailPayslipsForMonth(ctx, body.year, body.month));
+    return json(await emailPayslipsForMonth(ctx, body.year, body.month, body.userIds));
   }
   if (a === "payslips" && !b && method === "GET") return json(await listMyPayslips(ctx));
   if (a === "payslips" && b && c === "email" && method === "POST") return json(await emailPayslip(ctx, b));
   if (a === "payslips" && b && !c && method === "GET") return json(await getPayslip(ctx, b));
+  if (a === "payslips" && b && !c && method === "PATCH") {
+    const body = z.object({
+      baseSalary: z.number().int().positive().max(100_000_000).optional(),
+      hra: z.number().int().min(0).max(100_000_000).optional(),
+      specialAllowance: z.number().int().min(0).max(100_000_000).optional(),
+      pfDeduction: z.number().int().min(0).max(100_000_000).optional(),
+      taxDeduction: z.number().int().min(0).max(100_000_000).optional(),
+      otherDeduction: z.number().int().min(0).max(100_000_000).optional(),
+      bankLast4: z.string().regex(/^\d{4}$/).nullable().optional(),
+      notes: z.string().max(500).nullable().optional(),
+    }).parse(await readJson(request));
+    return json(await updatePayslip(ctx, b, body));
+  }
+  if (a === "payslips" && b && !c && method === "DELETE") return json(await deletePayslip(ctx, b));
   if (a === "admin" && b === "settings" && method === "PATCH") {
     const body = z.object({
       name: z.string().min(2).max(80).optional(),

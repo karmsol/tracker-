@@ -202,7 +202,7 @@ export async function generatePayslips(ctx: AppContext, input: { year: number; m
         ...pay,
         bankLast4: profile.bankLast4,
         panMasked: profile.panMasked,
-        status: "ISSUED",
+        status: "DRAFT",
       },
       update: {
         generatedById: ctx.user.id,
@@ -210,18 +210,13 @@ export async function generatePayslips(ctx: AppContext, input: { year: number; m
         ...pay,
         bankLast4: profile.bankLast4,
         panMasked: profile.panMasked,
-        status: "ISSUED",
+        // Keep emailed slips emailed; otherwise reset to draft so managers can edit before send.
+        status: "DRAFT",
+        emailedAt: null,
       },
       include: { user: true },
     });
     created.push(toSlip(slip));
-    await notifyUser(ctx, profile.userId, {
-      type: "pay.slip",
-      title: "Salary slip ready",
-      body: `Your ${monthLabel(input.year, input.month)} slip is ready to view.`,
-      link: appUrl(`/pay?slip=${slip.id}`),
-      email: false,
-    });
   }
   await audit(ctx, "pay.slips_generated", "payslip", null, { year: input.year, month: input.month, count: created.length });
   return { slips: created, count: created.length };
@@ -250,6 +245,60 @@ function slipHtml(orgName: string, slip: ReturnType<typeof toSlip>) {
       <p style="margin:20px 0 0"><a href="${appUrl(`/pay?slip=${slip.id}`)}" style="display:inline-block;background:#c2410c;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none">Open in Karm Karo</a></p>
     `,
   );
+}
+
+export async function updatePayslip(
+  ctx: AppContext,
+  slipId: string,
+  input: {
+    baseSalary?: number;
+    hra?: number;
+    specialAllowance?: number;
+    pfDeduction?: number;
+    taxDeduction?: number;
+    otherDeduction?: number;
+    bankLast4?: string | null;
+    notes?: string | null;
+  },
+) {
+  if (!can(ctx.role, "pay.manage")) throw new ForbiddenError();
+  const slip = await prisma.payslip.findFirst({
+    where: { id: slipId, organizationId: ctx.organizationId },
+  });
+  if (!slip) throw new NotFoundError();
+  const pay = computePay({
+    baseSalary: input.baseSalary ?? slip.baseSalary,
+    hra: input.hra ?? slip.hra,
+    specialAllowance: input.specialAllowance ?? slip.specialAllowance,
+    pfDeduction: input.pfDeduction ?? slip.pfDeduction,
+    taxDeduction: input.taxDeduction ?? slip.taxDeduction,
+    otherDeduction: input.otherDeduction ?? slip.otherDeduction,
+  });
+  if (pay.baseSalary <= 0) throw new AppError("Base salary must be greater than zero");
+  const updated = await prisma.payslip.update({
+    where: { id: slip.id },
+    data: {
+      ...pay,
+      bankLast4: input.bankLast4 === undefined ? undefined : input.bankLast4 ? sanitizeText(input.bankLast4, 4) : null,
+      notes: input.notes === undefined ? undefined : input.notes ? sanitizeText(input.notes, 500) : null,
+      status: slip.status === "EMAILED" ? "DRAFT" : slip.status === "ISSUED" ? "DRAFT" : slip.status,
+      emailedAt: null,
+    },
+    include: { user: true },
+  });
+  await audit(ctx, "pay.slip_edited", "payslip", slip.id, { userId: slip.userId, netPay: pay.netPay });
+  return toSlip(updated);
+}
+
+export async function deletePayslip(ctx: AppContext, slipId: string) {
+  if (!can(ctx.role, "pay.manage")) throw new ForbiddenError();
+  const slip = await prisma.payslip.findFirst({
+    where: { id: slipId, organizationId: ctx.organizationId },
+  });
+  if (!slip) throw new NotFoundError();
+  await prisma.payslip.delete({ where: { id: slip.id } });
+  await audit(ctx, "pay.slip_removed", "payslip", slip.id, { userId: slip.userId, year: slip.year, month: slip.month });
+  return { ok: true };
 }
 
 export async function emailPayslip(ctx: AppContext, slipId: string) {
@@ -285,10 +334,21 @@ export async function emailPayslip(ctx: AppContext, slipId: string) {
   };
 }
 
-export async function emailPayslipsForMonth(ctx: AppContext, year: number, month: number) {
+export async function emailPayslipsForMonth(
+  ctx: AppContext,
+  year: number,
+  month: number,
+  userIds?: string[],
+) {
   if (!can(ctx.role, "pay.manage")) throw new ForbiddenError();
   const slips = await prisma.payslip.findMany({
-    where: { organizationId: ctx.organizationId, year, month },
+    where: {
+      organizationId: ctx.organizationId,
+      year,
+      month,
+      ...(userIds?.length ? { userId: { in: userIds } } : {}),
+      status: { in: ["DRAFT", "ISSUED"] },
+    },
     select: { id: true },
   });
   const results = [];
