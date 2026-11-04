@@ -1,12 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Noto_Sans_Devanagari, Outfit } from "next/font/google";
+import { Noto_Sans_Devanagari, Plus_Jakarta_Sans } from "next/font/google";
 import { cookies } from "next/headers";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
-const noto = Noto_Sans_Devanagari({ subsets: ["devanagari"], weight: ["400", "600", "700"], variable: "--font-devanagari" });
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  weight: ["400", "500", "600", "700", "800"],
+});
+const noto = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  weight: ["400", "600", "700"],
+  variable: "--font-devanagari",
+});
 
 export const metadata: Metadata = {
   title: { default: "Karm Karo", template: "%s · Karm Karo" },
@@ -18,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1a1744",
+  themeColor: "#10101f",
   width: "device-width",
   initialScale: 1,
 };
@@ -27,8 +34,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const jar = await cookies();
   const lang = jar.get("karm_locale")?.value === "hi" ? "hi" : "en";
   return (
-    <html lang={lang} suppressHydrationWarning className={`${outfit.variable} ${fraunces.variable} ${noto.variable}`}>
-      <body className="min-h-screen antialiased">
+    <html lang={lang} suppressHydrationWarning className={`${jakarta.variable} ${noto.variable}`}>
+      <body className="min-h-dvh antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

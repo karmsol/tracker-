@@ -121,8 +121,8 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
         <DialogTitle>Capture the work</DialogTitle>
         <DialogDescription>English, Hindi, or Hinglish. You confirm before anything is saved.</DialogDescription>
         <div className="mt-3 flex gap-2 text-sm">
-          <button className={!manual ? "font-medium text-[#c2410c]" : ""} onClick={() => setManual(false)}>Assistant</button>
-          <button className={manual ? "font-medium text-[#c2410c]" : ""} onClick={() => setManual(true)}>Write it yourself</button>
+          <button className={!manual ? "font-medium text-[#e85d04]" : ""} onClick={() => setManual(false)}>Assistant</button>
+          <button className={manual ? "font-medium text-[#e85d04]" : ""} onClick={() => setManual(true)}>Write it yourself</button>
         </div>
         {!manual && !draft && (
           <form
@@ -136,7 +136,7 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
             <div className="flex gap-2">
               <Button type="submit" disabled={busy || text.trim().length < 2}>{busy ? "Reading…" : "Preview"}</Button>
               <Button type="button" variant="outline" onClick={listen} aria-label="Voice input">
-                <Mic className={`h-4 w-4 ${listening ? "text-[#c2410c]" : ""}`} />
+                <Mic className={`h-4 w-4 ${listening ? "text-[#e85d04]" : ""}`} />
               </Button>
             </div>
           </form>
@@ -165,7 +165,7 @@ export function QuickAdd({ open, onOpenChange }: { open: boolean; onOpenChange: 
             <p className="text-sm">People: {draft.assigneeIds.map((id) => data.members.find((member) => member.id === id)?.name).filter(Boolean).join(", ") || "You"}</p>
             <p className="text-sm">Project: {draft.projectName || "Inbox"} {draft.recurrenceLabel ? `· ${draft.recurrenceLabel}` : ""}</p>
             {draft.labels.length > 0 && <p className="text-sm">Labels: {draft.labels.join(", ")}</p>}
-            {draft.note && <p className="text-sm text-[#9a3412]">{draft.note}</p>}
+            {draft.note && <p className="text-sm text-[#cf4f03]">{draft.note}</p>}
             <div className="flex gap-2">
               <Button type="submit" disabled={busy}>Save task</Button>
               <Button type="button" variant="outline" onClick={() => setDraft(null)}>Edit sentence</Button>

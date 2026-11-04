@@ -49,3 +49,6 @@ dump.rdb
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+ui-skills/
+ui-ux-pro-max-skill/
+awesome-copilot/

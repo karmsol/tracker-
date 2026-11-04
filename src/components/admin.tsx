@@ -13,8 +13,8 @@ import { useWorkspace } from "./workspace";
 
 const PRIORITIES = [
   { value: 1, label: "Urgent", tone: "border-[#b91c1c] text-[#b91c1c]" },
-  { value: 2, label: "High", tone: "border-[#c2410c] text-[#c2410c]" },
-  { value: 3, label: "Normal", tone: "border-[#1a1744] text-[#1a1744]" },
+  { value: 2, label: "High", tone: "border-[#e85d04] text-[#e85d04]" },
+  { value: 3, label: "Normal", tone: "border-[#10101f] text-[#10101f]" },
   { value: 4, label: "Later", tone: "border-stone-400 text-stone-500" },
 ] as const;
 
@@ -43,7 +43,7 @@ export function AdminNav() {
             <Link
               key={href}
               href={href}
-              className={`rounded-full px-4 py-2 text-sm ${active ? "bg-[#1a1744] text-[#f6f1e8]" : "border bg-card hover:bg-secondary"}`}
+              className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${active ? "bg-[#10101f] text-[#f4f3ef]" : "border bg-card hover:bg-secondary"}`}
             >
               {label}
             </Link>
@@ -54,7 +54,13 @@ export function AdminNav() {
         <summary className="cursor-pointer text-sm text-muted-foreground">More manager tools</summary>
         <nav className="mt-2 flex flex-wrap gap-2 pb-1" aria-label="More manager tools">
           {more.map(([href, label]) => (
-            <Link key={href} href={href} className={`rounded-full border px-3 py-1 text-sm ${pathname === href ? "border-[#1a1744] bg-[#1a1744] text-[#f6f1e8]" : "bg-background"}`}>
+            <Link
+              key={href}
+              href={href}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+                pathname === href ? "border-[#10101f] bg-[#10101f] text-[#f4f3ef]" : "bg-background hover:bg-secondary"
+              }`}
+            >
               {label}
             </Link>
           ))}
@@ -78,9 +84,9 @@ function ManagerShell({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">{eyebrow}</p>
-        <h1 className="font-display text-4xl md:text-5xl">{title}</h1>
-        {hint && <p className="max-w-2xl text-sm text-muted-foreground">{hint}</p>}
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#e85d04]">{eyebrow}</p>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-balance md:text-5xl">{title}</h1>
+        {hint && <p className="max-w-2xl text-pretty text-sm text-muted-foreground">{hint}</p>}
       </header>
       <AdminNav />
       {children}
@@ -125,11 +131,11 @@ export function AdminHome() {
       title="Give work. Keep it light."
       hint="This desk is only for handing work to people. Charts and settings stay tucked under More."
     >
-      <section className="rounded-[1.75rem] border bg-[#1a1744] p-6 text-[#f6f1e8] shadow-sm">
-        <p className="text-sm text-[#fdba74]">Start here</p>
+      <section className="rounded-[1.75rem] border bg-[#10101f] p-6 text-[#f4f3ef] shadow-sm">
+        <p className="text-sm text-[#ffb074]">Start here</p>
         <h2 className="mt-1 font-display text-3xl">Who needs the next task?</h2>
-        <p className="mt-2 max-w-xl text-sm text-[#f6f1e8]/70">Write what needs doing, pick one person, send it. They get it in My work.</p>
-        <Button className="mt-5 bg-[#e8610a] text-white hover:bg-[#c2410c]" onClick={() => router.push("/admin/assign")}>
+        <p className="mt-2 max-w-xl text-sm text-[#f4f3ef]/70">Write what needs doing, pick one person, send it. They get it in My work.</p>
+        <Button className="mt-5 bg-[#e85d04] text-white hover:bg-[#e85d04]" onClick={() => router.push("/admin/assign")}>
           Give someone work
         </Button>
       </section>
@@ -158,10 +164,10 @@ export function AdminHome() {
               key={member.id}
               type="button"
               onClick={() => router.push(`/admin/assign?to=${member.id}`)}
-              className="rounded-2xl border bg-card p-4 text-left transition hover:border-[#c2410c]/50 hover:shadow-sm"
+              className="rounded-2xl border bg-card p-4 text-left transition hover:border-[#e85d04]/50 hover:shadow-sm"
             >
               <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#1a1744] text-sm font-semibold text-[#f6f1e8]">
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#10101f] text-sm font-semibold text-[#f4f3ef]">
                   {member.name.slice(0, 1)}
                 </span>
                 <span className="min-w-0">
@@ -175,7 +181,7 @@ export function AdminHome() {
                   {member.overdue ? `${member.overdue} overdue` : "Clear"}
                 </span>
               </div>
-              <span className="mt-3 inline-flex text-sm font-medium text-[#c2410c]">Give work →</span>
+              <span className="mt-3 inline-flex text-sm font-medium text-[#e85d04]">Give work →</span>
             </button>
           ))}
           {!team.length && <p className="text-sm text-muted-foreground">Invite employees first, then assign from here.</p>}
@@ -318,9 +324,9 @@ function AssignAdminForm() {
                   role="option"
                   aria-selected={active}
                   onClick={() => setPersonId(member.id)}
-                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${active ? "border-[#c2410c] bg-[#fff7ed]" : "bg-background hover:bg-secondary"}`}
+                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${active ? "border-[#e85d04] bg-[#fff4eb]" : "bg-background hover:bg-secondary"}`}
                 >
-                  <span className={`grid h-10 w-10 place-items-center rounded-full text-sm font-semibold ${active ? "bg-[#c2410c] text-white" : "bg-[#1a1744] text-[#f6f1e8]"}`}>
+                  <span className={`grid h-10 w-10 place-items-center rounded-full text-sm font-semibold ${active ? "bg-[#e85d04] text-white" : "bg-[#10101f] text-[#f4f3ef]"}`}>
                     {member.name.slice(0, 1)}
                   </span>
                   <span className="min-w-0">

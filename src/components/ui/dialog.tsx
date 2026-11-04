@@ -11,7 +11,7 @@ export const DialogClose = DialogPrimitive.Close;
 export function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#1a1744]/40" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#10101f]/40" />
       <DialogPrimitive.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100%-1.5rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-card p-5 shadow-xl",

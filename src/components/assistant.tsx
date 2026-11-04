@@ -49,7 +49,7 @@ export function Assistant({ open, onOpenChange }: { open: boolean; onOpenChange:
         <DialogTitle>Karm assistant</DialogTitle>
         <div className="mt-3 flex-1 space-y-3 overflow-auto pr-1" aria-live="polite">
           {messages.map((message, index) => (
-            <div key={index} className={`rounded-xl px-3 py-2 text-sm ${message.role === "user" ? "bg-[#1a1744] text-[#f6f1e8]" : "bg-secondary"}`}>
+            <div key={index} className={`rounded-xl px-3 py-2 text-sm ${message.role === "user" ? "bg-[#10101f] text-[#f4f3ef]" : "bg-secondary"}`}>
               <p className="whitespace-pre-wrap">{message.text}</p>
               {message.pending && (
                 <Button className="mt-2" size="sm" onClick={() => save(message.pending!)}>Save “{message.pending.title}”</Button>

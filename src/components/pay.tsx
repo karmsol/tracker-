@@ -328,7 +328,7 @@ export function PayAdmin() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">Payrolls</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-[#e85d04]">Payrolls</p>
         <h1 className="font-display text-4xl md:text-5xl">Salaries and slips</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           1) Tick who is in this month · 2) Save or edit amounts · 3) Generate drafts · 4) Email only when ready.
@@ -342,10 +342,10 @@ export function PayAdmin() {
       </header>
       <AdminNav />
 
-      <section className="rounded-[1.75rem] border bg-[#1a1744] p-5 text-[#f6f1e8] md:p-6">
-        <p className="text-sm text-[#fdba74]">Payroll run</p>
+      <section className="rounded-[1.75rem] border bg-[#10101f] p-5 text-[#f4f3ef] md:p-6">
+        <p className="text-sm text-[#ffb074]">Payroll run</p>
         <h2 className="mt-1 font-display text-3xl">{monthLabel(year, month)}</h2>
-        <p className="mt-2 text-sm text-[#f6f1e8]/70">{included.length} people selected</p>
+        <p className="mt-2 text-sm text-[#f4f3ef]/70">{included.length} people selected</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <label className="text-sm">
             Year
@@ -356,10 +356,10 @@ export function PayAdmin() {
             <Input className="mt-1 w-24 bg-white text-[#1c1917]" type="number" min={1} max={12} value={month} onChange={(event) => setMonth(Number(event.target.value))} />
           </label>
           <div className="flex flex-wrap items-end gap-2">
-            <Button type="button" className="bg-[#e8610a] text-white hover:bg-[#c2410c]" disabled={busy} onClick={() => void generate()}>
+            <Button type="button" className="bg-[#e85d04] text-white hover:bg-[#e85d04]" disabled={busy} onClick={() => void generate()}>
               Generate drafts for selected
             </Button>
-            <Button type="button" variant="outline" className="border-white/30 bg-transparent text-[#f6f1e8] hover:bg-white/10" disabled={busy} onClick={() => void emailSelected()}>
+            <Button type="button" variant="outline" className="border-white/30 bg-transparent text-[#f4f3ef] hover:bg-white/10" disabled={busy} onClick={() => void emailSelected()}>
               Email selected drafts
             </Button>
           </div>
@@ -381,7 +381,7 @@ export function PayAdmin() {
           </div>
           <ul className="space-y-1">
             {desk.people.map((item) => (
-              <li key={item.id} className={`flex items-center gap-2 rounded-xl px-2 py-2 ${selected === item.id ? "bg-[#fff7ed]" : "hover:bg-secondary"}`}>
+              <li key={item.id} className={`flex items-center gap-2 rounded-xl px-2 py-2 ${selected === item.id ? "bg-[#fff4eb]" : "hover:bg-secondary"}`}>
                 <input
                   type="checkbox"
                   aria-label={`Include ${item.name}`}
@@ -414,7 +414,7 @@ export function PayAdmin() {
                 <div className="grid gap-2 rounded-2xl bg-secondary/70 p-4 text-sm sm:grid-cols-3">
                   <div><p className="text-muted-foreground">Gross</p><p className="font-display text-2xl">{formatInr(preview.gross)}</p></div>
                   <div><p className="text-muted-foreground">Deductions</p><p className="font-display text-2xl">{formatInr(preview.totalDeductions)}</p></div>
-                  <div><p className="text-muted-foreground">Net</p><p className="font-display text-2xl text-[#c2410c]">{formatInr(preview.netPay)}</p></div>
+                  <div><p className="text-muted-foreground">Net</p><p className="font-display text-2xl text-[#e85d04]">{formatInr(preview.netPay)}</p></div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit" variant="saffron" disabled={busy}>Save package</Button>
@@ -518,7 +518,7 @@ export function MyPay() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">{manager ? "Payrolls" : "My pay"}</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-[#e85d04]">{manager ? "Payrolls" : "My pay"}</p>
         <h1 className="font-display text-4xl">{manager ? "Payrolls" : "Your salary slips"}</h1>
         <p className="text-sm text-muted-foreground">
           {manager
@@ -551,7 +551,7 @@ export function MyPay() {
                     setForm(formFromSlip(slip));
                     setEditing(false);
                   }}
-                  className={`w-full rounded-2xl border px-3 py-3 text-left ${active?.id === slip.id ? "border-[#c2410c] bg-[#fff7ed]" : "bg-card"}`}
+                  className={`w-full rounded-2xl border px-3 py-3 text-left ${active?.id === slip.id ? "border-[#e85d04] bg-[#fff4eb]" : "bg-card"}`}
                 >
                   <span className="block font-medium">{slip.periodLabel}</span>
                   <span className="block text-sm text-muted-foreground">
@@ -566,14 +566,14 @@ export function MyPay() {
             <article className="rounded-[1.5rem] border bg-card p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">Salary slip</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#e85d04]">Salary slip</p>
                   <h2 className="font-display text-3xl">{active.periodLabel}</h2>
                   <p className="text-sm text-muted-foreground">{active.name} · {active.email}</p>
                   <p className="mt-1 text-sm">{statusLabel(active.status)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Net pay</p>
-                  <p className="font-display text-3xl text-[#1a1744]">{formatInr(editing ? preview.netPay : active.netPay)}</p>
+                  <p className="font-display text-3xl text-[#10101f]">{formatInr(editing ? preview.netPay : active.netPay)}</p>
                 </div>
               </div>
 
@@ -583,7 +583,7 @@ export function MyPay() {
                   <div className="grid gap-2 rounded-2xl bg-secondary/70 p-4 text-sm sm:grid-cols-3">
                     <div><p className="text-muted-foreground">Gross</p><p className="font-display text-2xl">{formatInr(preview.gross)}</p></div>
                     <div><p className="text-muted-foreground">Deductions</p><p className="font-display text-2xl">{formatInr(preview.totalDeductions)}</p></div>
-                    <div><p className="text-muted-foreground">Net</p><p className="font-display text-2xl text-[#c2410c]">{formatInr(preview.netPay)}</p></div>
+                    <div><p className="text-muted-foreground">Net</p><p className="font-display text-2xl text-[#e85d04]">{formatInr(preview.netPay)}</p></div>
                   </div>
                 </div>
               ) : (

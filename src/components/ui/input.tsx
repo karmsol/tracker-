@@ -5,7 +5,7 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "flex h-10 w-full rounded-lg border bg-card px-3 text-sm outline-none placeholder:text-muted-foreground",
+        "flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:border-[#16142e] focus-visible:ring-2 focus-visible:ring-[#16142e]/15",
         className,
       )}
       {...props}
@@ -16,12 +16,15 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea
-      className={cn("min-h-24 w-full rounded-lg border bg-card px-3 py-2 text-sm outline-none placeholder:text-muted-foreground", className)}
+      className={cn(
+        "min-h-24 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:border-[#16142e] focus-visible:ring-2 focus-visible:ring-[#16142e]/15",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 export function Label({ className, ...props }: React.ComponentProps<"label">) {
-  return <label className={cn("text-sm font-medium", className)} {...props} />;
+  return <label className={cn("text-sm font-medium text-foreground/90", className)} {...props} />;
 }

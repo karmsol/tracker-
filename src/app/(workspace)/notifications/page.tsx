@@ -23,7 +23,7 @@ export default function NotificationsPage() {
             <p className="font-medium">{item.title}</p>
             <p className="text-sm text-muted-foreground">{item.body}</p>
             {item.link && (
-              <Link href={item.link} className="mt-2 inline-block text-sm font-medium text-[#c2410c] underline">
+              <Link href={item.link} className="mt-2 inline-block text-sm font-medium text-[#e85d04] underline">
                 {item.type === "pay.due" ? "Open payroll" : "Open"}
               </Link>
             )}

@@ -102,7 +102,7 @@ export function TaskScreen({
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">{data.org.name}</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-[#e85d04]">{data.org.name}</p>
           <h1 className="font-display text-4xl">{title}</h1>
         </div>
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="View">
@@ -174,7 +174,7 @@ export function TaskScreen({
 function Column({ id, title, tasks, onOpen }: { id: string; title: string; tasks: TaskDTO[]; onOpen: (id: string) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <section ref={setNodeRef} className={`rounded-2xl bg-secondary/70 p-2 ${isOver ? "ring-2 ring-[#e8610a]" : ""}`}>
+    <section ref={setNodeRef} className={`rounded-2xl bg-secondary/70 p-2 ${isOver ? "ring-2 ring-[#e85d04]" : ""}`}>
       <h2 className="px-2 py-2 text-sm font-medium">{title} <span className="text-muted-foreground">{tasks.length}</span></h2>
       <div className="space-y-2">
         {tasks.map((task) => <Card key={task.id} task={task} onOpen={onOpen} />)}
@@ -237,7 +237,7 @@ function Timeline({ tasks, timeZone, onOpen }: { tasks: TaskDTO[]; timeZone: str
         const width = Math.min(100 - left, Math.max(8, ((Math.max(to, from) - from) / span) * 100 + 8));
         return (
           <button key={task.id} onClick={() => onOpen(task.id)} className="relative block h-10 w-full overflow-hidden rounded-lg bg-secondary text-left">
-            <span className="absolute top-1 h-8 truncate rounded-md bg-[#1a1744] px-2 text-xs leading-8 text-[#f6f1e8]" style={{ left: `${left}%`, width: `${width}%` }}>{task.title}</span>
+            <span className="absolute top-1 h-8 truncate rounded-md bg-[#10101f] px-2 text-xs leading-8 text-[#f4f3ef]" style={{ left: `${left}%`, width: `${width}%` }}>{task.title}</span>
           </button>
         );
       })}
@@ -269,7 +269,7 @@ function names(task: TaskDTO, members: { id: string; name: string }[]) {
 }
 
 function priorityColor(priority: number) {
-  return ["#9f1239", "#c2410c", "#2a2760", "#a8a29e"][priority - 1] ?? "#a8a29e";
+  return ["#9f1239", "#e85d04", "#2a2760", "#a8a29e"][priority - 1] ?? "#a8a29e";
 }
 
 void useMemo;
