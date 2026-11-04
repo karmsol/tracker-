@@ -54,14 +54,13 @@ export function useWorkspace() {
   return value;
 }
 
-const links = [
+const baseLinks = [
   { href: "/inbox", key: "nav.inbox", icon: Inbox },
   { href: "/today", key: "nav.today", icon: Sunrise },
   { href: "/upcoming", key: "nav.upcoming", icon: CalendarClock },
   { href: "/overdue", key: "nav.overdue", icon: CalendarClock },
   { href: "/completed", key: "nav.completed", icon: CheckCircle2 },
   { href: "/assigned", key: "nav.assigned", icon: UserRound },
-  { href: "/pay", key: "nav.pay", icon: IndianRupee },
 ];
 
 export function WorkspaceProvider({ initial, children }: { initial: Bootstrap; children: React.ReactNode }) {
@@ -85,6 +84,10 @@ export function WorkspaceProvider({ initial, children }: { initial: Bootstrap; c
   }
   const locale = (data.me.locale === "hi" ? "hi" : "en") as Locale;
   const t = (key: string) => translate(locale, key);
+  const links = [
+    ...baseLinks,
+    { href: "/pay", key: isManager(data.me.role) ? "nav.payrolls" : "nav.pay", icon: IndianRupee },
+  ];
 
   async function refresh() {
     const next = await api<Bootstrap>("/api/v1/me");

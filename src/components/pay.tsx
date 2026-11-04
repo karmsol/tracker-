@@ -328,7 +328,7 @@ export function PayAdmin() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">Pay</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">Payrolls</p>
         <h1 className="font-display text-4xl md:text-5xl">Salaries and slips</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           1) Tick who is in this month · 2) Save or edit amounts · 3) Generate drafts · 4) Email only when ready.
@@ -488,16 +488,16 @@ export function MyPay() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">My pay</p>
-        <h1 className="font-display text-4xl">{manager ? "Pay slips" : "Your salary slips"}</h1>
+        <p className="text-xs uppercase tracking-[0.16em] text-[#c2410c]">{manager ? "Payrolls" : "My pay"}</p>
+        <h1 className="font-display text-4xl">{manager ? "Payrolls" : "Your salary slips"}</h1>
         <p className="text-sm text-muted-foreground">
           {manager
-            ? "This page shows slips. To add or remove people from a month, or edit before send, use Manage pay."
+            ? "This page shows payroll slips. To add or remove people from a month, or edit before send, use Manage payroll."
             : "When payroll runs, your slip lands here and in your email."}
         </p>
         {manager && (
           <Button asChild variant="saffron">
-            <Link href="/admin/pay">Manage pay · add, edit, remove, email</Link>
+            <Link href="/admin/pay">Manage payroll · add, edit, remove, email</Link>
           </Button>
         )}
       </header>
@@ -505,7 +505,7 @@ export function MyPay() {
         <div className="rounded-2xl border border-dashed bg-card p-8 text-center">
           <p className="font-display text-2xl">No slips yet</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {manager ? "Open Manage pay, tick people, then Generate drafts." : "Ask your manager to generate this month’s payroll."}
+            {manager ? "Open Manage payroll, tick people, then Generate drafts." : "Ask your manager to generate this month’s payroll."}
           </p>
         </div>
       )}
