@@ -89,6 +89,11 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
   );
 }
 
+// Temporary fallback so first Vercel deploys can boot before secrets are added.
+if (!process.env.AUTH_SECRET) {
+  process.env.AUTH_SECRET = "karm-karo-temporary-auth-secret-replace-me";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 14 },

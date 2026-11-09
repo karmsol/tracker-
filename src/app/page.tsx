@@ -6,7 +6,8 @@ import { Mark, Wordmark } from "@/components/brand";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const session = await auth();
+  // Tolerate missing AUTH_SECRET / DATABASE_URL during first deploys.
+  const session = await auth().catch(() => null);
   if (session?.user?.id) redirect("/today");
 
   return (
