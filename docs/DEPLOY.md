@@ -59,7 +59,7 @@ The seed is idempotent for the slug `indus-collective`. It does not reset a work
 3. Create a Cloudflare R2 bucket (or any S3-compatible bucket). Set `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_REGION=auto`.
 4. Push this repository to GitHub and import it in Vercel. Framework preset: Next.js. Root directory: the repository root.
 5. Add every production variable in the Vercel project settings. `CRON_SECRET` must match the bearer token Vercel sends to Cron Jobs.
-6. `vercel.json` schedules `GET /api/cron` every 15 minutes. That route runs reminders, the morning digest, and the weekly admin report. Protect it with `CRON_SECRET`.
+6. `vercel.json` schedules `GET /api/cron` once daily at 02:30 UTC (08:00 IST) so it works on the Hobby plan. That route runs reminders, the morning digest, payroll-day alerts, and the weekly admin report. Protect it with `CRON_SECRET`. On Pro you can tighten the schedule if you need more frequent reminder delivery.
 7. Deploy. Then run migrations against the production database from your machine or a one-off job:
 
 ```bash
