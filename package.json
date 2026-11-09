@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 43123",
-    "build": "prisma generate && next build",
+    "build": "npx prisma generate && next build",
+    "postinstall": "npx prisma generate",
     "start": "next start -p 43123",
     "lint": "eslint",
     "test": "vitest run",
@@ -54,11 +55,13 @@
     "nodemailer": "^8.0.11",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
+    "prisma": "7.10.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "recharts": "^3.10.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "tsx": "^4.20.6",
     "web-push": "^3.6.7",
     "zod": "^4.6.7"
   },
@@ -73,9 +76,7 @@
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
-    "prisma": "7.10.1",
     "tailwindcss": "^4",
-    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "3.2.4"
   }
