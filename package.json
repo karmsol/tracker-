@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 43123",
-    "build": "npx prisma generate && next build",
-    "postinstall": "npx prisma generate",
+    "build": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/postgres} npx prisma generate && next build",
+    "postinstall": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/postgres} npx prisma generate",
     "start": "next start -p 43123",
     "lint": "eslint",
     "test": "vitest run",
